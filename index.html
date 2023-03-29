@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projekt</title>
+    <script src="scripts/plotly-2.17.1.min.js"></script>
+    <script src="scripts/numeric.js"></script>
+    <script src="scripts/math.js"></script>
+    <link rel="stylesheet" href="style/style.css">
+</head>
+
+<body>
+    <div id="main">
+        <div id="program">
+            <div id="options">
+                <label for="lname">Wpisz n</label>
+                <input type="text" id="lname" name="lname" onkeypress="return onlyNumberKey(event)">
+                <button id="send">Generuj</button>
+            </div>
+            <div id="plot"></div>
+        </div>
+        <div id="diff">
+        </div>
+    </div>
+
+
+    <script>
+        let defaultN = 10
+
+        class Solve {
+            constructor(n) {
+                this.t0 = 0
+                this.tn = 1
+                this.x_tab = this.get_x(this.t0, this.tn, n)
+                this.n = this.x_tab.length
+                this.h = (this.x_tab[this.n - 1] - this.x_tab[0]) / n;
+
+            }
+            get_x(t0, tn, n) {
+                var x = []
+                for (var i = 0; i < n + 1; i++) {
+                    x[i] = t0 + (tn - t0) * i / n;
+                }
+                return x
+            }
+            definitive() {
+                var u = []
+                for (var i = 0; i < this.n; i++) {
+                    u[i] = this.x_tab[i] + 2
+                }
+                return u
+            }
+            power(x, n) {
+                return x ** n
+            }
+            matrix() {
+                var temp_tab = []
+                for (var i = 0; i < this.n; i++) {
+                    var tb = []
+                    for (var j = 0; j < this.n; j++) {
+                        tb.push([])
+                    }
+                    temp_tab.push(tb)
+                }
+                temp_tab[0][0] = -2 * (this.x_tab[0] + 1) / this.power(this.h, 2)
+                temp_tab[0][1] = 2 * (this.x_tab[0] + 1) / this.power(this.h, 2)
+                for (var i = 1; i < this.n - 1; i++) {
+                    temp_tab[i][i - 1] = (this.x_tab[i] + 1) / this.power(this.h, 2) - 1 / (2 * this.h)
+                    temp_tab[i][i] = -2 * (this.x_tab[i] + 1) / this.power(this.h, 2)
+                    temp_tab[i][i + 1] = (this.x_tab[i] + 1) / this.power(this.h, 2) + 1 / (2 * this.h)
+                }
+                temp_tab[this.n - 1][this.n - 2] = 2 * (this.x_tab[this.n - 1] + 1) / this.power(this.h, 2)
+                temp_tab[this.n - 1][this.n - 1] = -2 * (this.x_tab[this.n - 1] + 1) / this.power(this.h, 2) + 2 * (this.x_tab[this.n - 1] + 1) / this.h + 1
+
+                return numeric.inv(temp_tab)
+            }
+            f_tab() {
+                var temp = []
+                for (var i = 0; i < this.n; i++) {
+                    temp.push([])
+                }
+                temp[0][0] = 1 + 2 * (this.x_tab[0] + 1) / this.h - 1
+                for (var i = 1; i < this.n - 1; i++) {
+                    temp[i][0] = 1
+                }
+                temp[this.n - 1][0] = 1 + 4 * (this.x_tab[this.n - 1] + 1) / this.h + 2
+                return temp
+            }
+            solve() {
+                var A = this.matrix()
+                var f = this.f_tab()
+                var u = numeric.dot(A, f)
+                var answer = []
+                for (var i = 0; i < this.n; i++) {
+                    answer.push(u[i][0])
+                }
+                return answer
+            }
+            global(y_tab, y_tab2) {
+                let min = 0
+                for (var i = 0; i < this.n; i++) {
+                    min = Math.max(Math.abs(y_tab[i] - y_tab2[i]), min)
+                }
+                return min
+            }
+        }
+
+        let inpt = document.getElementById("lname")
+        inpt.defaultValue = defaultN
+
+        function onlyNumberKey(e) {
+            if (e.key == "Enter") {
+                mySet(e)
+            }
+            // Only ASCII character in that range allowed
+            var ASCIICode = (e.which) ? e.which : e.keyCode
+            if (ASCIICode > 31 && (ASCIICode < 48 || ASCIICode > 57))
+                return false;
+            return true;
+        }
+        function mySet(e) {
+            let inpt = document.getElementById("lname")
+            let number = parseInt(inpt.value)
+            if ((isNaN(number) || number == 0)) {
+                return
+            }
+            solution = new Solve(number)
+            let y_tab = solution.definitive()
+
+            let y_tab2 = solution.solve()
+
+            let div_diff = document.getElementById("diff")
+            let diff = solution.global(y_tab, y_tab2)
+            div_diff.innerText = "Błąd globalny metody MRS dla n = " + (solution.n - 1) + " : " + diff
+
+            let trace1 = {
+                x: solution.x_tab,
+                y: y_tab,
+                type: 'scatter',
+                name: 'Dokładne'
+            };
+
+            let trace2 = {
+                x: solution.x_tab,
+                y: y_tab2,
+                type: 'scatter',
+                name: 'Metoda Mrs'
+
+            };
+
+            let data = [trace1, trace2];
+
+            Plotly.newPlot('plot', {
+                'data': data,
+                "layout": { "width": 800, "height": 500 }
+            });
+        }
+        let btn = document.getElementById("send")
+        btn.addEventListener("click", mySet);
+
+        Plotly.newPlot('plot', { 'data': [], "layout": { "width": 800, "height": 500 } });
+
+    </script>
+</body>
+
+</html>
