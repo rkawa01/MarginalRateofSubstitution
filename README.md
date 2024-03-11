@@ -8,4 +8,4 @@ equation used in project:
 
 To run click:
 
-https://thyen-radek.github.io/MarginalRateofSubstitution/
+https://rkawa01.github.io/MarginalRateofSubstitution/
